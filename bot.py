@@ -28,7 +28,77 @@ CATEGORY_INFO = {
     9:  {"emoji": "🛸", "title": "כטב\"מ עוין"},
     13: {"emoji": "🚨", "title": "טיל בליסטי"},
 }
+
+# מיפוי ערים למחוזות
+CITY_TO_DISTRICT = {
+    # מחוז דן
+    "תל אביב": "מחוז דן", "תל אביב - מרכז העיר": "מחוז דן", "תל אביב - דרום העיר": "מחוז דן",
+    "תל אביב - צפון העיר": "מחוז דן", "תל אביב - מזרח": "מחוז דן",
+    "רמת גן": "מחוז דן", "גבעתיים": "מחוז דן", "בני ברק": "מחוז דן",
+    "פתח תקווה": "מחוז דן", "אור יהודה": "מחוז דן", "אזור": "מחוז דן",
+    "בת ים": "מחוז דן", "חולון": "מחוז דן", "יהוד": "מחוז דן",
+    "קריית אונו": "מחוז דן", "גבעת שמואל": "מחוז דן", "אלעד": "מחוז דן",
+    "ראש העין": "מחוז דן",
+    # מחוז ירושלים
+    "ירושלים": "מחוז ירושלים", "ירושלים - מרכז": "מחוז ירושלים",
+    "ירושלים - דרום": "מחוז ירושלים", "ירושלים - צפון": "מחוז ירושלים",
+    "ירושלים - מזרח": "מחוז ירושלים", "בית שמש": "מחוז ירושלים",
+    "מבשרת ציון": "מחוז ירושלים", "מודיעין עילית": "מחוז ירושלים",
+    # מחוז חיפה
+    "חיפה": "מחוז חיפה", "חיפה - כרמל": "מחוז חיפה", "חיפה - מרכז הכרמל": "מחוז חיפה",
+    "חיפה - כרמל ועיר תחתית": "מחוז חיפה", "חיפה - נווה שאנן": "מחוז חיפה",
+    "חיפה - קריית חיים": "מחוז חיפה", "קריית אתא": "מחוז חיפה",
+    "קריית ביאליק": "מחוז חיפה", "קריית מוצקין": "מחוז חיפה",
+    "קריית ים": "מחוז חיפה", "טירת כרמל": "מחוז חיפה",
+    "נשר": "מחוז חיפה", "עכו": "מחוז חיפה", "נהריה": "מחוז חיפה",
+    "כרמיאל": "מחוז חיפה", "עפולה": "מחוז חיפה",
+    # מחוז צפון
+    "צפת": "מחוז צפון", "טבריה": "מחוז צפון", "קצרין": "מחוז צפון",
+    "קריית שמונה": "מחוז צפון", "מטולה": "מחוז צפון", "שלומי": "מחוז צפון",
+    "מעלות תרשיחא": "מחוז צפון", "נהריה": "מחוז צפון",
+    "בית שאן": "מחוז צפון", "אפולה": "מחוז צפון",
+    # מחוז המרכז
+    "ראשון לציון": "מחוז המרכז", "נס ציונה": "מחוז המרכז",
+    "רחובות": "מחוז המרכז", "לוד": "מחוז המרכז", "רמלה": "מחוז המרכז",
+    "מודיעין": "מחוז המרכז", "רעננה": "מחוז המרכז", "כפר סבא": "מחוז המרכז",
+    "הוד השרון": "מחוז המרכז", "נתניה": "מחוז המרכז", "הרצליה": "מחוז המרכז",
+    "רמת השרון": "מחוז המרכז", "גדרה": "מחוז המרכז", "יבנה": "מחוז המרכז",
+    # מחוז דרום
+    "באר שבע": "מחוז דרום", "אשדוד": "מחוז דרום", "אשקלון": "מחוז דרום",
+    "קריית גת": "מחוז דרום", "דימונה": "מחוז דרום", "ערד": "מחוז דרום",
+    "נתיבות": "מחוז דרום", "שדרות": "מחוז דרום", "אופקים": "מחוז דרום",
+    "קריית מלאכי": "מחוז דרום", "רהט": "מחוז דרום",
+    # עוטף עזה
+    "שדרות, איבים, ניר עם": "עוטף עזה", "ניר עם": "עוטף עזה",
+    "כיסופים": "עוטף עזה", "נחל עוז": "עוטף עזה", "כפר עזה": "עוטף עזה",
+    "בארי": "עוטף עזה", "רעים": "עוטף עזה",
+    # ערבה ואילת
+    "אילת": "ערבה ואילת", "יטבתה": "ערבה ואילת", "עין יהב": "ערבה ואילת",
+}
+
+def get_district(city):
+    """מחזיר מחוז לפי שם עיר — בדיקה חלקית"""
+    for key, district in CITY_TO_DISTRICT.items():
+        if key in city or city in key:
+            return district
+    return None
+
+def group_by_district(areas):
+    """מקבץ רשימת ערים לפי מחוזות"""
+    districts = {}
+    unknown = []
+    for area in areas:
+        district = get_district(area)
+        if district:
+            districts.setdefault(district, []).append(area)
+        else:
+            unknown.append(area)
+    return districts, unknown
+
 BALLISTIC = {13}
+
+# קטגוריות מותרות — ברירת מחדל: הכל
+allowed_categories = set(CATEGORY_INFO.keys())
 
 channels = {"-1001084391143": "ערוץ ראשי"}
 bot_active = True
@@ -78,12 +148,32 @@ async def broadcast(session, text):
         await send(session, ch, text)
 
 
-def build_msg(area, category=1):
+def build_msg(areas, category=1):
     info = CATEGORY_INFO.get(category, {"emoji": "🚨", "title": "אזעקה"})
+    if isinstance(areas, str):
+        areas = [areas]
+    
+    # קיבוץ לפי מחוזות
+    districts, unknown = group_by_district(areas)
+    
+    lines = []
+    for district, cities in sorted(districts.items()):
+        lines.append(f"📍 *{district}*")
+        for city in cities:
+            lines.append(f"   • {city}")
+    for city in unknown:
+        lines.append(f"📍 {city}")
+    
+    location_text = "\n".join(lines)
+    
     if category in BALLISTIC:
-        msg = f"⚡️ *התרעה קיצונית — {info['title']}*\n🌍 {area}\n\n_זמן הגעה: כ-3-5 דקות. היכנסו למרחב מוגן מיידית!_"
+        msg = f"⚡️ *התרעה קיצונית — {info['title']}*\n\n{location_text}\n\n_זמן הגעה: כ-3-5 דקות. היכנסו למרחב מוגן מיידית!_"
     else:
-        msg = f"{info['emoji']} *{info['title']}*\n📍 {area}"
+        count = len(areas)
+        district_count = len(districts)
+        summary = f"{count} יישובים ב-{district_count} מחוזות" if district_count > 1 else f"{count} יישובים"
+        msg = f"{info['emoji']} *{info['title']}*\n_{summary}_\n\n{location_text}"
+    
     msg += f"\n\n{footer}"
     return msg
 
@@ -101,6 +191,7 @@ def kb_main():
          {"text": "⏰ תזמון", "callback_data": "ask_schedule"}],
         [{"text": "🚫 חסימות", "callback_data": "blocks"},
          {"text": "📈 סטטיסטיקות", "callback_data": "areastats"}],
+        [{"text": "🔔 סוגי התרעות", "callback_data": "categories"}],
         [{"text": "❌ סגור", "callback_data": "close"}],
     ]}
 
@@ -126,6 +217,17 @@ def kb_blocks():
     rows.append([{"text": "🔙 חזרה לתפריט", "callback_data": "home"}])
     return {"inline_keyboard": rows}
 
+
+
+def kb_categories():
+    rows = []
+    for cat_id, info in CATEGORY_INFO.items():
+        status = "✅" if cat_id in allowed_categories else "❌"
+        rows.append([{"text": f"{status} {info['emoji']} {info['title']}", "callback_data": f"togglecat_{cat_id}"}])
+    rows.append([{"text": "✅ הפעל הכל", "callback_data": "allcats_on"},
+                 {"text": "❌ כבה הכל", "callback_data": "allcats_off"}])
+    rows.append([{"text": "🔙 חזרה לתפריט", "callback_data": "home"}])
+    return {"inline_keyboard": rows}
 
 async def handle_callback(session, cb):
     global bot_active, area_filter
@@ -227,6 +329,29 @@ async def handle_callback(session, cb):
             lines = "\n".join([f"• {a}: {c}" for a, c in top])
             await edit(session, cid, mid, f"📈 *TOP 10 אזורים:*\n\n{lines}", kb_back())
 
+    elif d == "categories":
+        lines = "\n".join([f"{'✅' if c in allowed_categories else '❌'} {info['emoji']} {info['title']}" for c, info in CATEGORY_INFO.items()])
+        await edit(session, cid, mid, f"🔔 *סוגי התרעות:*\n\n{lines}", kb_categories())
+
+    elif d.startswith("togglecat_"):
+        cat_id = int(d[10:])
+        if cat_id in allowed_categories:
+            allowed_categories.discard(cat_id)
+        else:
+            allowed_categories.add(cat_id)
+        lines = "\n".join([f"{'✅' if c in allowed_categories else '❌'} {info['emoji']} {info['title']}" for c, info in CATEGORY_INFO.items()])
+        await edit(session, cid, mid, f"🔔 *סוגי התרעות:*\n\n{lines}", kb_categories())
+
+    elif d == "allcats_on":
+        allowed_categories.update(CATEGORY_INFO.keys())
+        lines = "\n".join([f"✅ {info['emoji']} {info['title']}" for info in CATEGORY_INFO.values()])
+        await edit(session, cid, mid, f"🔔 *סוגי התרעות:*\n\n{lines}", kb_categories())
+
+    elif d == "allcats_off":
+        allowed_categories.clear()
+        lines = "\n".join([f"❌ {info['emoji']} {info['title']}" for info in CATEGORY_INFO.values()])
+        await edit(session, cid, mid, f"🔔 *סוגי התרעות:*\n\n{lines}", kb_categories())
+
     elif d == "close":
         await tg(session, "deleteMessage", chat_id=cid, message_id=mid)
 
@@ -295,26 +420,36 @@ async def alert_loop(session):
                             alert_id = data.get("id", "")
                             category = data.get("cat", 1)
                             areas = data.get("data", [])
-                            for area in areas:
-                                key = f"{alert_id}_{area}"
-                                if key not in seen_ids:
-                                    seen_ids.add(key)
-                                    if any(b in area for b in blocked_areas):
-                                        continue
-                                    if area_filter and area_filter not in area:
-                                        continue
-                                    msg = build_msg(area, category)
-                                    await broadcast(session, msg)
-                                    now = datetime.now()
-                                    stats["total"] += 1
-                                    stats["last"] = now
-                                    area_stats[area] = area_stats.get(area, 0) + 1
-                                    info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
-                                    alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": info["title"]})
-                                    if len(alert_log) > 100:
-                                        alert_log.pop(0)
-                                    await send(session, ADMIN_ID, f"🔔 *{info['title']}*\n{area}")
-                                    logger.info(f"Sent: [{info['title']}] {area}")
+                            
+                            # בדוק אם ההתרעה הזו כבר נשלחה
+                            alert_key = f"{alert_id}"
+                            if alert_key and alert_key not in seen_ids:
+                                seen_ids.add(alert_key)
+                                
+                                if category not in allowed_categories:
+                                    pass
+                                else:
+                                    # סנן ערים חסומות ופילטר
+                                    filtered = [
+                                        a for a in areas
+                                        if not any(b in a for b in blocked_areas)
+                                        and (not area_filter or area_filter in a)
+                                    ]
+                                    
+                                    if filtered:
+                                        msg = build_msg(filtered, category)
+                                        await broadcast(session, msg)
+                                        now = datetime.now()
+                                        stats["total"] += len(filtered)
+                                        stats["last"] = now
+                                        info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
+                                        for area in filtered:
+                                            area_stats[area] = area_stats.get(area, 0) + 1
+                                            alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": info["title"]})
+                                        if len(alert_log) > 100:
+                                            alert_log = alert_log[-100:]
+                                        await send(session, ADMIN_ID, f"🔔 *{info['title']}*\n{len(filtered)} יישובים")
+                                        logger.info(f"Sent: [{info['title']}] {len(filtered)} areas")
                     elif r.status == 403:
                         logger.error("403 blocked!")
             if len(seen_ids) > 1000:
