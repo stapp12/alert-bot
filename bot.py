@@ -141,7 +141,7 @@ async def alert_loop(session):
                         seen_alerts.add(area)
                         if area_filter and area_filter not in area:
                             continue
-                        await send(session, CHANNEL_ID, f"🚨 *אזעקה*\n{area}")
+                        await send(session, CHANNEL_ID, f"🚨 *אזעקה*\n{area}\n\n📢 [קבל התרעות בזמן אמת](https://t.me/beforpakar)")
                         now = datetime.now()
                         stats["total"] += 1
                         stats["last_alert"] = now
