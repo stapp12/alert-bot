@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 BOT_TOKEN = "8662594909:AAFUX9KHgLStD2wzYVA6NzC_speQBicDAsA"
 ADMIN_ID = 6300100326
 
-OREF_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
+OREF_URL = "https://api.tzevaadom.co.il/alerts"
 OREF_HEADERS = {
     "Referer": "https://www.oref.org.il/",
     "X-Requested-With": "XMLHttpRequest",
@@ -378,13 +378,22 @@ async def telegram_loop(session):
 
 async def fetch_alerts(session):
     try:
-        async with session.get(OREF_URL, headers=OREF_HEADERS, timeout=aiohttp.ClientTimeout(total=5)) as r:
-            text = await r.text(encoding="utf-8-sig")
+        headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+        async with session.get(OREF_URL, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as r:
+            text = await r.text()
             if not text.strip():
-                return None
-            return json.loads(text)
-    except:
-        return None
+                return []
+            data = json.loads(text)
+            # tzevaadom מחזיר list של objects עם name, threat_id וכו
+            if isinstance(data, list):
+                return data
+            # oref מחזיר dict עם data
+            if isinstance(data, dict) and data.get("data"):
+                return [{"name": a, "threat_id": data.get("cat", 1), "id": data.get("id","")} for a in data["data"]]
+            return []
+    except Exception as e:
+        print(f"Fetch error: {e}")
+        return []
 
 
 async def alert_loop(session):
@@ -392,31 +401,38 @@ async def alert_loop(session):
     while True:
         try:
             if bot_active:
-                data = await fetch_alerts(session)
-                if data and data.get("data"):
-                    alert_id = data.get("id", "")
-                    category = data.get("cat", 1)
-                    areas = data.get("data", [])
-                    for area in areas:
-                        key = f"{alert_id}_{area}"
-                        if key not in seen_alerts:
-                            seen_alerts.add(key)
-                            if any(blocked in area for blocked in blocked_areas):
-                                continue
-                            if area_filter and area_filter not in area:
-                                continue
-                            msg = build_alert_message(area, category)
-                            await broadcast(session, msg)
-                            now = datetime.now()
-                            stats["total"] += 1
-                            stats["last_alert"] = now
-                            area_stats[area] = area_stats.get(area, 0) + 1
-                            cat_info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
-                            alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": cat_info["title"]})
-                            if len(alert_log) > 100:
-                                alert_log.pop(0)
-                            await send(session, ADMIN_ID, f"🔔 *{cat_info['title']}*\nאזור: {area}")
-                            print(f"Sent [{cat_info['title']}]: {area}")
+                alerts = await fetch_alerts(session)
+                for alert in alerts:
+                    # tzevaadom format: {notifications: [{cities:[...], threat:N}], id:...}
+                    # או list פשוטה
+                    if isinstance(alert, dict):
+                        area = alert.get("name") or alert.get("city") or str(alert)
+                        category = alert.get("threat_id") or alert.get("threat") or 1
+                        alert_id = str(alert.get("id", ""))
+                    else:
+                        area = str(alert)
+                        category = 1
+                        alert_id = ""
+                    
+                    key = f"{alert_id}_{area}" if alert_id else area
+                    if key not in seen_alerts:
+                        seen_alerts.add(key)
+                        if any(blocked in area for blocked in blocked_areas):
+                            continue
+                        if area_filter and area_filter not in area:
+                            continue
+                        msg = build_alert_message(area, category)
+                        await broadcast(session, msg)
+                        now = datetime.now()
+                        stats["total"] += 1
+                        stats["last_alert"] = now
+                        area_stats[area] = area_stats.get(area, 0) + 1
+                        cat_info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
+                        alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": cat_info["title"]})
+                        if len(alert_log) > 100:
+                            alert_log.pop(0)
+                        await send(session, ADMIN_ID, f"🔔 *{cat_info['title']}*\nאזור: {area}")
+                        print(f"Sent [{cat_info['title']}]: {area}")
                 if len(seen_alerts) > 1000:
                     seen_alerts.clear()
         except Exception as e:
