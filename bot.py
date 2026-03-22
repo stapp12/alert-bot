@@ -39,10 +39,10 @@ alert_log = []
 area_stats = {}
 stats = {"total": 0, "last_alert": None, "started_at": datetime.now()}
 scheduled = []
-
 offset = 0
-# מצב המתנה לקלט מהמשתמש: {user_id: "action"}
-waiting_input = {}
+
+# מצב המתנה לקלט מהמשתמש
+waiting_for = {}  # {chat_id: action}
 
 
 async def tg(session, method, **kwargs):
@@ -89,60 +89,62 @@ def build_alert_message(area, category=1):
     return msg
 
 
-# ─── מקלדות ─────────────────────────────────────────────────────────────────
+# ─── מקלדות ──────────────────────────────────────────────
 
 def kb_main():
-    status_btn = "🔴 עצור בוט" if bot_active else "🟢 הפעל בוט"
-    status_cb = "stop_bot" if bot_active else "start_bot"
+    status_btn = "🔴 עצור" if bot_active else "🟢 הפעל"
+    status_cb = "stop" if bot_active else "start"
     return {"inline_keyboard": [
-        [{"text": "📊 סטטוס",      "callback_data": "status"},
-         {"text": "📋 לוג",         "callback_data": "log"}],
-        [{"text": status_btn,        "callback_data": status_cb},
+        [{"text": "📊 סטטוס", "callback_data": "status"},
+         {"text": "📋 לוג", "callback_data": "log"}],
+        [{"text": status_btn, "callback_data": status_cb},
          {"text": "📈 סטטיסטיקות", "callback_data": "areastats"}],
-        [{"text": "📢 ערוצים",      "callback_data": "menu_channels"},
-         {"text": "🔗 קישורים",     "callback_data": "menu_links"}],
-        [{"text": "📣 שידור",       "callback_data": "broadcast_prompt"},
-         {"text": "⏰ תזמון",       "callback_data": "schedule_prompt"}],
-        [{"text": "🚫 חסימות",      "callback_data": "menu_block"},
-         {"text": "✏️ תבנית",       "callback_data": "template_prompt"}],
+        [{"text": "📢 ערוצים", "callback_data": "menu_channels"},
+         {"text": "🔗 קישורים", "callback_data": "menu_links"}],
+        [{"text": "📣 שידור", "callback_data": "ask_broadcast"},
+         {"text": "⏰ תזמון", "callback_data": "ask_schedule"}],
+        [{"text": "🚫 חסימות", "callback_data": "menu_block"},
+         {"text": "✏️ תבנית", "callback_data": "ask_template"}],
     ]}
 
 
 def kb_channels():
     rows = [[{"text": f"🗑 הסר: {name}", "callback_data": f"rmch_{ch_id}"}]
             for ch_id, name in channels.items()]
-    rows.append([{"text": "➕ הוסף ערוץ", "callback_data": "addch_prompt"}])
-    rows.append([{"text": "🔙 חזור",       "callback_data": "main_menu"}])
+    rows.append([{"text": "➕ הוסף ערוץ", "callback_data": "ask_addchannel"}])
+    rows.append([{"text": "🔙 חזרה", "callback_data": "main"}])
     return {"inline_keyboard": rows}
 
 
 def kb_links():
-    rows = [[{"text": f"🗑 הסר: {l[:25]}", "callback_data": f"rmlink_{i}"}]
+    rows = [[{"text": f"🗑 הסר: {l[l.find('[')+1:l.find(']')]}", "callback_data": f"rmlink_{i}"}]
             for i, l in enumerate(footer_links)]
-    rows.append([{"text": "➕ הוסף קישור", "callback_data": "addlink_prompt"}])
-    rows.append([{"text": "🔙 חזור",        "callback_data": "main_menu"}])
+    rows.append([{"text": "➕ הוסף קישור", "callback_data": "ask_addlink"}])
+    rows.append([{"text": "🔙 חזרה", "callback_data": "main"}])
     return {"inline_keyboard": rows}
 
 
 def kb_block():
     rows = [[{"text": f"✅ בטל חסימה: {a}", "callback_data": f"unblock_{a}"}]
             for a in sorted(blocked_areas)]
-    rows.append([{"text": "➕ חסום אזור", "callback_data": "block_prompt"}])
-    rows.append([{"text": "🔙 חזור",       "callback_data": "main_menu"}])
+    rows.append([{"text": "➕ חסום אזור", "callback_data": "ask_blockarea"}])
+    rows.append([{"text": f"🔍 פילטור: {'כבוי' if not area_filter else area_filter}", "callback_data": "ask_filter"}])
+    rows.append([{"text": "🔙 חזרה", "callback_data": "main"}])
     return {"inline_keyboard": rows}
 
 
 def kb_back():
-    return {"inline_keyboard": [[{"text": "🔙 חזור לתפריט", "callback_data": "main_menu"}]]}
+    return {"inline_keyboard": [[{"text": "🔙 חזרה", "callback_data": "main"}]]}
 
 
-# ─── טיפול בלחיצות כפתור ─────────────────────────────────────────────────────
+# ─── טיפול בלחיצות כפתורים ───────────────────────────────
 
 async def handle_callback(session, callback):
+    global bot_active, area_filter, alert_template
     cb_id = callback["id"]
-    user_id = callback["from"]["id"]
     chat_id = callback["message"]["chat"]["id"]
     msg_id = callback["message"]["message_id"]
+    user_id = callback["from"]["id"]
     data = callback.get("data", "")
 
     if user_id != ADMIN_ID:
@@ -151,11 +153,8 @@ async def handle_callback(session, callback):
 
     await answer_callback(session, cb_id)
 
-    if data == "main_menu":
-        status = "🟢 פעיל" if bot_active else "🔴 מושהה"
-        await edit_message(session, chat_id, msg_id,
-            f"🛠 *פאנל ניהול*\nמצב: {status} | ערוצים: {len(channels)} | התרעות: {stats['total']}",
-            kb_main())
+    if data == "main":
+        await edit_message(session, chat_id, msg_id, "🛠 *פאנל ניהול*", kb_main())
 
     elif data == "status":
         uptime = datetime.now() - stats["started_at"]
@@ -164,15 +163,16 @@ async def handle_callback(session, callback):
         last = stats["last_alert"].strftime("%H:%M:%S %d/%m/%Y") if stats["last_alert"] else "אין עדיין"
         status_icon = "🟢 פעיל" if bot_active else "🔴 מושהה"
         filter_text = f"רק: {area_filter}" if area_filter else "הכל"
-        await edit_message(session, chat_id, msg_id,
+        text = (
             f"📊 *סטטוס הבוט*\n\n"
             f"מצב: {status_icon}\n"
             f"סה\"כ התרעות: {stats['total']}\n"
             f"התרעה אחרונה: {last}\n"
             f"פילטור: {filter_text}\n"
             f"ערוצים: {len(channels)}\n"
-            f"זמן פעילות: {h}h {m}m",
-            kb_back())
+            f"זמן פעילות: {h}h {m}m"
+        )
+        await edit_message(session, chat_id, msg_id, text, kb_back())
 
     elif data == "log":
         if not alert_log:
@@ -182,20 +182,15 @@ async def handle_callback(session, callback):
             text = f"📋 *10 התרעות אחרונות:*\n\n{lines}"
         await edit_message(session, chat_id, msg_id, text, kb_back())
 
-    elif data == "stop_bot":
-        global bot_active
+    elif data == "stop":
         bot_active = False
         await broadcast(session, "🔴 הבוט הושהה זמנית.")
-        await edit_message(session, chat_id, msg_id,
-            "🛠 *פאנל ניהול*\nמצב: 🔴 מושהה | ערוצים: " + str(len(channels)) + " | התרעות: " + str(stats['total']),
-            kb_main())
+        await edit_message(session, chat_id, msg_id, "🛠 *פאנל ניהול*", kb_main())
 
-    elif data == "start_bot":
+    elif data == "start":
         bot_active = True
         await broadcast(session, "🟢 הבוט חזר לפעילות!")
-        await edit_message(session, chat_id, msg_id,
-            "🛠 *פאנל ניהול*\nמצב: 🟢 פעיל | ערוצים: " + str(len(channels)) + " | התרעות: " + str(stats['total']),
-            kb_main())
+        await edit_message(session, chat_id, msg_id, "🛠 *פאנל ניהול*", kb_main())
 
     elif data == "areastats":
         if not area_stats:
@@ -208,140 +203,145 @@ async def handle_callback(session, callback):
 
     elif data == "menu_channels":
         ch_list = "\n".join([f"• {name} (`{ch_id}`)" for ch_id, name in channels.items()]) or "אין ערוצים"
-        await edit_message(session, chat_id, msg_id, f"📢 *ניהול ערוצים:*\n\n{ch_list}", kb_channels())
+        await edit_message(session, chat_id, msg_id, f"📢 *ערוצים פעילים:*\n\n{ch_list}", kb_channels())
 
     elif data.startswith("rmch_"):
         ch_id = data[5:]
         if ch_id in channels:
             name = channels.pop(ch_id)
-            ch_list = "\n".join([f"• {n} (`{c}`)" for c, n in channels.items()]) or "אין ערוצים"
-            await edit_message(session, chat_id, msg_id, f"✅ הוסר: *{name}*\n\n📢 *ערוצים:*\n{ch_list}", kb_channels())
+            await answer_callback(session, cb_id, f"✅ הוסר: {name}")
+        ch_list = "\n".join([f"• {name} (`{cid}`)" for cid, name in channels.items()]) or "אין ערוצים"
+        await edit_message(session, chat_id, msg_id, f"📢 *ערוצים פעילים:*\n\n{ch_list}", kb_channels())
 
-    elif data == "addch_prompt":
-        waiting_input[user_id] = {"action": "addch", "chat_id": chat_id, "msg_id": msg_id}
-        await edit_message(session, chat_id, msg_id,
-            "📢 שלח את ה-ID של הערוץ ואחריו שם, למשל:\n`-1001234567890 ערוץ חדש`",
-            kb_back())
+    elif data == "ask_addchannel":
+        waiting_for[chat_id] = "addchannel"
+        await edit_message(session, chat_id, msg_id, "שלח: `<channel_id> <שם>`\nלדוגמה: `-1001234567890 ערוץ שני`", kb_back())
 
     elif data == "menu_links":
-        lnk_list = "\n".join([f"{i+1}. {l}" for i, l in enumerate(footer_links)]) or "אין קישורים"
-        await edit_message(session, chat_id, msg_id, f"🔗 *קישורים קבועים:*\n\n{lnk_list}", kb_links())
+        links_text = "\n".join([f"{i+1}. {l}" for i, l in enumerate(footer_links)]) or "אין קישורים"
+        await edit_message(session, chat_id, msg_id, f"🔗 *קישורים קבועים:*\n\n{links_text}", kb_links())
 
     elif data.startswith("rmlink_"):
         idx = int(data[7:])
         if 0 <= idx < len(footer_links):
             footer_links.pop(idx)
-        lnk_list = "\n".join([f"{i+1}. {l}" for i, l in enumerate(footer_links)]) or "אין קישורים"
-        await edit_message(session, chat_id, msg_id, f"✅ קישור הוסר\n\n🔗 *קישורים:*\n{lnk_list}", kb_links())
+        links_text = "\n".join([f"{i+1}. {l}" for i, l in enumerate(footer_links)]) or "אין קישורים"
+        await edit_message(session, chat_id, msg_id, f"🔗 *קישורים קבועים:*\n\n{links_text}", kb_links())
 
-    elif data == "addlink_prompt":
-        waiting_input[user_id] = {"action": "addlink", "chat_id": chat_id, "msg_id": msg_id}
-        await edit_message(session, chat_id, msg_id,
-            "🔗 שלח טקסט ו-URL, למשל:\n`ערוץ הראשי https://t.me/beforpakar`",
-            kb_back())
+    elif data == "ask_addlink":
+        waiting_for[chat_id] = "addlink"
+        await edit_message(session, chat_id, msg_id, "שלח: `<טקסט> <url>`\nלדוגמה: `הצטרף לערוץ https://t.me/beforpakar`", kb_back())
 
     elif data == "menu_block":
-        bl_list = "\n".join([f"• {a}" for a in sorted(blocked_areas)]) or "אין חסימות"
-        await edit_message(session, chat_id, msg_id, f"🚫 *אזורים חסומים:*\n\n{bl_list}", kb_block())
+        blocked_text = "\n".join([f"• {a}" for a in sorted(blocked_areas)]) or "אין חסימות"
+        filter_text = f"פילטור פעיל: {area_filter}" if area_filter else "פילטור: כבוי"
+        await edit_message(session, chat_id, msg_id, f"🚫 *חסימות ופילטורים*\n\n{blocked_text}\n\n{filter_text}", kb_block())
 
     elif data.startswith("unblock_"):
         area = data[8:]
         blocked_areas.discard(area)
-        bl_list = "\n".join([f"• {a}" for a in sorted(blocked_areas)]) or "אין חסימות"
-        await edit_message(session, chat_id, msg_id, f"✅ חסימה בוטלה: *{area}*\n\n🚫 *חסומים:*\n{bl_list}", kb_block())
+        blocked_text = "\n".join([f"• {a}" for a in sorted(blocked_areas)]) or "אין חסימות"
+        filter_text = f"פילטור פעיל: {area_filter}" if area_filter else "פילטור: כבוי"
+        await edit_message(session, chat_id, msg_id, f"🚫 *חסימות ופילטורים*\n\n{blocked_text}\n\n{filter_text}", kb_block())
 
-    elif data == "block_prompt":
-        waiting_input[user_id] = {"action": "block", "chat_id": chat_id, "msg_id": msg_id}
-        await edit_message(session, chat_id, msg_id, "🚫 שלח שם האזור לחסימה:", kb_back())
+    elif data == "ask_blockarea":
+        waiting_for[chat_id] = "blockarea"
+        await edit_message(session, chat_id, msg_id, "שלח שם האזור לחסימה:", kb_back())
 
-    elif data == "broadcast_prompt":
-        waiting_input[user_id] = {"action": "broadcast", "chat_id": chat_id, "msg_id": msg_id}
-        await edit_message(session, chat_id, msg_id, "📣 שלח את ההודעה לשידור לכל הערוצים:", kb_back())
+    elif data == "ask_filter":
+        waiting_for[chat_id] = "filter"
+        await edit_message(session, chat_id, msg_id, "שלח שם אזור לפילטור, או `off` לביטול:", kb_back())
 
-    elif data == "schedule_prompt":
-        waiting_input[user_id] = {"action": "schedule", "chat_id": chat_id, "msg_id": msg_id}
+    elif data == "ask_broadcast":
+        waiting_for[chat_id] = "broadcast"
+        await edit_message(session, chat_id, msg_id, "✍️ שלח את ההודעה לשידור לכל הערוצים:", kb_back())
+
+    elif data == "ask_schedule":
+        waiting_for[chat_id] = "schedule"
+        await edit_message(session, chat_id, msg_id, "⏰ שלח: `HH:MM טקסט ההודעה`\nלדוגמה: `20:00 בדיקת מערכת`", kb_back())
+
+    elif data == "ask_template":
+        waiting_for[chat_id] = "template"
         await edit_message(session, chat_id, msg_id,
-            "⏰ שלח שעה והודעה בפורמט:\n`HH:MM טקסט ההודעה`",
-            kb_back())
-
-    elif data == "template_prompt":
-        waiting_input[user_id] = {"action": "template", "chat_id": chat_id, "msg_id": msg_id}
-        await edit_message(session, chat_id, msg_id,
-            f"✏️ תבנית נוכחית:\n`{alert_template}`\n\nשלח תבנית חדשה (השתמש ב-`{{area}}` לשם האזור):",
-            kb_back())
+            f"✏️ תבנית נוכחית:\n`{alert_template}`\n\nשלח תבנית חדשה. השתמש ב-`{{area}}` לשם האזור:", kb_back())
 
 
-# ─── טיפול בקלט טקסט חופשי ───────────────────────────────────────────────────
+# ─── טיפול בקלט חופשי (אחרי לחיצת כפתור) ────────────────
 
-async def handle_input(session, chat_id, user_id, text):
+async def handle_free_input(session, chat_id, user_id, text):
     global bot_active, area_filter, alert_template
-    state = waiting_input.pop(user_id, None)
-    if not state:
-        return False
 
-    action = state["action"]
-    orig_chat = state["chat_id"]
-    orig_msg = state["msg_id"]
+    if user_id != ADMIN_ID:
+        return
 
-    if action == "addch":
-        parts = text.strip().split(None, 1)
-        if len(parts) < 2:
-            await send(session, chat_id, "❌ פורמט שגוי. שלח: `<id> <שם>`")
-            return True
-        ch_id, ch_name = parts
-        channels[ch_id] = ch_name
-        await send(session, chat_id, f"✅ ערוץ נוסף: *{ch_name}*")
-        ch_list = "\n".join([f"• {n} (`{c}`)" for c, n in channels.items()])
-        await edit_message(session, orig_chat, orig_msg, f"📢 *ניהול ערוצים:*\n\n{ch_list}", kb_channels())
+    action = waiting_for.pop(chat_id, None)
+    if not action:
+        return
+
+    parts = text.strip().split()
+
+    if action == "broadcast":
+        await broadcast(session, text)
+        await send(session, chat_id, f"✅ שודר ל-{len(channels)} ערוצים.", kb_main())
+
+    elif action == "addchannel":
+        if len(parts) >= 2:
+            ch_id = parts[0]
+            ch_name = " ".join(parts[1:])
+            channels[ch_id] = ch_name
+            await send(session, chat_id, f"✅ ערוץ נוסף: *{ch_name}*", kb_main())
+        else:
+            await send(session, chat_id, "❌ פורמט שגוי. נסה: `-100xxx שם`")
+            waiting_for[chat_id] = action
 
     elif action == "addlink":
-        parts = text.strip().rsplit(None, 1)
-        if len(parts) < 2:
-            await send(session, chat_id, "❌ פורמט שגוי. שלח: `<טקסט> <url>`")
-            return True
-        link_text, url = parts
-        footer_links.append(f"🔗 [{link_text}]({url})")
-        await send(session, chat_id, f"✅ קישור נוסף.")
-        lnk_list = "\n".join([f"{i+1}. {l}" for i, l in enumerate(footer_links)])
-        await edit_message(session, orig_chat, orig_msg, f"🔗 *קישורים:*\n\n{lnk_list}", kb_links())
+        if len(parts) >= 2:
+            url = parts[-1]
+            link_text = " ".join(parts[:-1])
+            footer_links.append(f"🔗 [{link_text}]({url})")
+            await send(session, chat_id, f"✅ קישור נוסף.", kb_main())
+        else:
+            await send(session, chat_id, "❌ פורמט שגוי.")
+            waiting_for[chat_id] = action
 
-    elif action == "block":
+    elif action == "blockarea":
         blocked_areas.add(text.strip())
-        await send(session, chat_id, f"🚫 חסום: *{text.strip()}*")
-        bl_list = "\n".join([f"• {a}" for a in sorted(blocked_areas)])
-        await edit_message(session, orig_chat, orig_msg, f"🚫 *חסומים:*\n\n{bl_list}", kb_block())
+        await send(session, chat_id, f"🚫 אזור חסום: *{text.strip()}*", kb_main())
 
-    elif action == "broadcast":
-        await broadcast(session, text.strip())
-        await send(session, chat_id, f"✅ שודר ל-{len(channels)} ערוצים.")
-        await edit_message(session, orig_chat, orig_msg,
-            f"🛠 *פאנל ניהול*\nמצב: {'🟢' if bot_active else '🔴'} | ערוצים: {len(channels)} | התרעות: {stats['total']}",
-            kb_main())
+    elif action == "filter":
+        if text.strip().lower() == "off":
+            area_filter = None
+            await send(session, chat_id, "✅ פילטור בוטל.", kb_main())
+        else:
+            area_filter = text.strip()
+            await send(session, chat_id, f"✅ פילטור: *{area_filter}*", kb_main())
 
     elif action == "schedule":
-        parts = text.strip().split(None, 1)
-        if len(parts) < 2:
-            await send(session, chat_id, "❌ פורמט שגוי. שלח: `HH:MM הודעה`")
-            return True
-        time_str, msg_text = parts
-        try:
-            now = datetime.now()
-            send_time = datetime.strptime(time_str, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
-            if send_time < now:
-                send_time += timedelta(days=1)
-            scheduled.append({"text": msg_text, "send_at": send_time})
-            await send(session, chat_id, f"✅ מתוזמן לשעה {time_str}.")
-        except:
-            await send(session, chat_id, "❌ פורמט שעה שגוי.")
+        if len(parts) >= 2:
+            time_str = parts[0]
+            msg_text = " ".join(parts[1:])
+            try:
+                now = datetime.now()
+                send_time = datetime.strptime(time_str, "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                if send_time < now:
+                    send_time += timedelta(days=1)
+                scheduled.append({"text": msg_text, "send_at": send_time})
+                await send(session, chat_id, f"✅ מתוזמן לשעה {time_str}.", kb_main())
+            except:
+                await send(session, chat_id, "❌ פורמט שגוי. נסה: `20:00 טקסט`")
+                waiting_for[chat_id] = action
+        else:
+            await send(session, chat_id, "❌ פורמט שגוי.")
+            waiting_for[chat_id] = action
 
     elif action == "template":
-        alert_template = text.strip().replace("\\n", "\n")
-        await send(session, chat_id, f"✅ תבנית עודכנה.")
-
-    return True
+        alert_template = text.replace("\\n", "\n")
+        await send(session, chat_id, "✅ תבנית עודכנה.", kb_main())
 
 
-# ─── לולאות ──────────────────────────────────────────────────────────────────
+# ─── לולאות ──────────────────────────────────────────────
 
 async def telegram_loop(session):
     global offset
@@ -354,9 +354,7 @@ async def telegram_loop(session):
 
                 # callback מכפתור
                 if "callback_query" in update:
-                    cb = update["callback_query"]
-                    if cb["from"]["id"] == ADMIN_ID:
-                        asyncio.create_task(handle_callback(session, cb))
+                    asyncio.create_task(handle_callback(session, update["callback_query"]))
                     continue
 
                 msg = update.get("message", {})
@@ -365,20 +363,13 @@ async def telegram_loop(session):
                 user_id = msg.get("from", {}).get("id")
                 if not text or not chat_id or not user_id:
                     continue
-                if user_id != ADMIN_ID:
-                    continue
 
-                # בדוק אם ממתינים לקלט
-                if user_id in waiting_input:
-                    asyncio.create_task(handle_input(session, chat_id, user_id, text))
-                    continue
-
-                # פקודות
-                if text.startswith("/start") or text.startswith("/menu"):
-                    status = "🟢 פעיל" if bot_active else "🔴 מושהה"
-                    await send(session, chat_id,
-                        f"🛠 *פאנל ניהול*\nמצב: {status} | ערוצים: {len(channels)} | התרעות: {stats['total']}",
-                        kb_main())
+                if text == "/start" or text == "/menu":
+                    await send(session, chat_id, "🛠 *פאנל ניהול*", kb_main())
+                elif text.startswith("/"):
+                    await send(session, chat_id, "השתמש ב /menu לפאנל הניהול.")
+                elif chat_id in waiting_for:
+                    asyncio.create_task(handle_free_input(session, chat_id, user_id, text))
 
         except Exception as e:
             print(f"Telegram error: {e}")
