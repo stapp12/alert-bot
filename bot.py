@@ -8,12 +8,12 @@ BOT_TOKEN = "8662594909:AAFUX9KHgLStD2wzYVA6NzC_speQBicDAsA"
 ADMIN_ID = 6300100326
 
 OREF_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
+# עדכון ה-Headers לפורמט שעבד ב-PowerShell
 OREF_HEADERS = {
-    "Host": "www.oref.org.il",
+    "Referer": "https://www.oref.org.il/",
     "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Referer": "https://www.oref.org.il/12481-he/PikudHaoref.aspx",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
     "Accept-Language": "he-IL,he;q=0.9",
 }
 
@@ -414,8 +414,10 @@ async def alert_loop(session):
             if bot_active:
                 async with session.get(OREF_URL, headers=OREF_HEADERS, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     if r.status == 200:
-                        text = await r.text(encoding="utf-8-sig")
-                        if text.strip():
+                        raw_text = await r.text(encoding="utf-8-sig")
+                        text = raw_text.strip()
+                        # בדיקה אם יש תוכן (לפי ה-Content-Length שראינו בבדיקה)
+                        if text and len(text) > 2:
                             data = json.loads(text)
                             alert_id = data.get("id", "")
                             category = data.get("cat", 1)
@@ -451,7 +453,7 @@ async def alert_loop(session):
                                         await send(session, ADMIN_ID, f"🔔 *{info['title']}*\n{len(filtered)} יישובים")
                                         logger.info(f"Sent: [{info['title']}] {len(filtered)} areas")
                     elif r.status == 403:
-                        logger.error("403 blocked!")
+                        logger.error("403 blocked! Check IP or User-Agent.")
             if len(seen_ids) > 1000:
                 seen_ids.clear()
         except Exception as e:
