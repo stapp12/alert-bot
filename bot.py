@@ -8,12 +8,12 @@ BOT_TOKEN = "8662594909:AAFUX9KHgLStD2wzYVA6NzC_speQBicDAsA"
 ADMIN_ID = 6300100326
 
 OREF_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
-# עדכון ה-Headers לפורמט שעבד ב-PowerShell
 OREF_HEADERS = {
-    "Referer": "https://www.oref.org.il/",
+    "Host": "www.oref.org.il",
     "X-Requested-With": "XMLHttpRequest",
-    "Accept": "application/json",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Referer": "https://www.oref.org.il/12481-he/PikudHaoref.aspx",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
     "Accept-Language": "he-IL,he;q=0.9",
 }
 
@@ -414,46 +414,40 @@ async def alert_loop(session):
             if bot_active:
                 async with session.get(OREF_URL, headers=OREF_HEADERS, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     if r.status == 200:
-                        raw_text = await r.text(encoding="utf-8-sig")
-                        text = raw_text.strip()
-                        # בדיקה אם יש תוכן (לפי ה-Content-Length שראינו בבדיקה)
-                        if text and len(text) > 2:
+                        text = await r.text(encoding="utf-8-sig")
+                        if text.strip():
                             data = json.loads(text)
                             alert_id = data.get("id", "")
                             category = data.get("cat", 1)
                             areas = data.get("data", [])
                             
-                            # בדוק אם ההתרעה הזו כבר נשלחה
-                            alert_key = f"{alert_id}"
-                            if alert_key and alert_key not in seen_ids:
-                                seen_ids.add(alert_key)
-                                
-                                if category not in allowed_categories:
-                                    pass
-                                else:
-                                    # סנן ערים חסומות ופילטר
-                                    filtered = [
-                                        a for a in areas
-                                        if not any(b in a for b in blocked_areas)
-                                        and (not area_filter or area_filter in a)
-                                    ]
-                                    
-                                    if filtered:
-                                        msg = build_msg(filtered, category)
-                                        await broadcast(session, msg)
-                                        now = datetime.now()
-                                        stats["total"] += len(filtered)
-                                        stats["last"] = now
-                                        info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
-                                        for area in filtered:
-                                            area_stats[area] = area_stats.get(area, 0) + 1
-                                            alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": info["title"]})
-                                        if len(alert_log) > 100:
-                                            alert_log = alert_log[-100:]
-                                        await send(session, ADMIN_ID, f"🔔 *{info['title']}*\n{len(filtered)} יישובים")
-                                        logger.info(f"Sent: [{info['title']}] {len(filtered)} areas")
+                            if category not in allowed_categories:
+                                pass
+                            else:
+                                filtered = [
+                                    a for a in areas
+                                    if f"{alert_id}_{a}" not in seen_ids
+                                    and not any(b in a for b in blocked_areas)
+                                    and (not area_filter or area_filter in a)
+                                ]
+                                if filtered:
+                                    for a in filtered:
+                                        seen_ids.add(f"{alert_id}_{a}")
+                                    msg = build_msg(filtered, category)
+                                    await broadcast(session, msg)
+                                    now = datetime.now()
+                                    stats["total"] += len(filtered)
+                                    stats["last"] = now
+                                    info = CATEGORY_INFO.get(category, {"title": "אזעקה"})
+                                    for area in filtered:
+                                        area_stats[area] = area_stats.get(area, 0) + 1
+                                        alert_log.append({"time": now.strftime("%H:%M:%S"), "area": area, "type": info["title"]})
+                                    if len(alert_log) > 100:
+                                        alert_log = alert_log[-100:]
+                                    await send(session, ADMIN_ID, f"🔔 *{info['title']}*\n{len(filtered)} יישובים")
+                                    logger.info(f"CAT:{category} Sent: [{info['title']}] {len(filtered)} areas")
                     elif r.status == 403:
-                        logger.error("403 blocked! Check IP or User-Agent.")
+                        logger.error("403 blocked!")
             if len(seen_ids) > 1000:
                 seen_ids.clear()
         except Exception as e:
