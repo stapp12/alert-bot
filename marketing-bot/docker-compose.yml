@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  ad-factory:
+    build: .
+    container_name: ad-factory-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./out:/app/out          # וידאו מרונדרים
+      - ./public:/app/public    # לוגו ונכסים סטטיים
+    ports:
+      - "8080:8080"           # Apify Webhook endpoint
+    environment:
+      - NODE_ENV=production
+      - PYTHONUNBUFFERED=1

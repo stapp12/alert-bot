@@ -1,0 +1,25 @@
+{
+  "ig_username": "",
+  "targets": [
+    "israel_bidur",
+    "gal_lavi"
+  ],
+  "active": false,
+  "actions": {
+    "follow": true,
+    "like": true,
+    "story_view": true,
+    "unfollow": false
+  },
+  "limits": {
+    "follows": 150,
+    "likes": 300,
+    "story_views": 200,
+    "unfollows": 150
+  },
+  "active_hours": {
+    "start": 8,
+    "end": 23
+  },
+  "proxy": ""
+}

@@ -1,0 +1,225 @@
+{
+  "pages": [
+    {
+      "id": "1b6d8983",
+      "name": "Star Media",
+      "platform": "אינסטגרם"
+    },
+    {
+      "id": "340c128b",
+      "name": "דארק סייד",
+      "platform": "אינסטגרם"
+    },
+    {
+      "id": "2263124b",
+      "name": "בוסטלי",
+      "platform": "אינסטגרם"
+    },
+    {
+      "id": "4afc6ed3",
+      "name": "הולילנד",
+      "platform": "אינסטגרם"
+    },
+    {
+      "id": "a5ebb7cc",
+      "name": "מיי ביזנס",
+      "platform": "אינסטגרם"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "215c3d37",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "platform": "אינסטגרם",
+      "page_id": "1b6d8983",
+      "page_ids": [
+        "1b6d8983"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "12:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:24",
+      "from_template": "5c2333bb"
+    },
+    {
+      "id": "6306dec3",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "platform": "אינסטגרם",
+      "page_id": "340c128b",
+      "page_ids": [
+        "340c128b"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "12:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:24",
+      "from_template": "5c2333bb"
+    },
+    {
+      "id": "75773bea",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "platform": "אינסטגרם",
+      "page_id": "2263124b",
+      "page_ids": [
+        "2263124b"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "12:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:24",
+      "from_template": "5c2333bb"
+    },
+    {
+      "id": "993e77cb",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "platform": "אינסטגרם",
+      "page_id": "4afc6ed3",
+      "page_ids": [
+        "4afc6ed3"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "12:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:24",
+      "from_template": "5c2333bb"
+    },
+    {
+      "id": "588fe7e6",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "platform": "אינסטגרם",
+      "page_id": "a5ebb7cc",
+      "page_ids": [
+        "a5ebb7cc"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "12:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:24",
+      "from_template": "5c2333bb"
+    },
+    {
+      "id": "3c1f660a",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "platform": "אינסטגרם",
+      "page_id": "1b6d8983",
+      "page_ids": [
+        "1b6d8983"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "09:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:25",
+      "from_template": "2d8c01d4"
+    },
+    {
+      "id": "513565de",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "platform": "אינסטגרם",
+      "page_id": "340c128b",
+      "page_ids": [
+        "340c128b"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "09:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:25",
+      "from_template": "2d8c01d4"
+    },
+    {
+      "id": "4e88b86a",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "platform": "אינסטגרם",
+      "page_id": "2263124b",
+      "page_ids": [
+        "2263124b"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "09:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:25",
+      "from_template": "2d8c01d4"
+    },
+    {
+      "id": "73bd97dc",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "platform": "אינסטגרם",
+      "page_id": "4afc6ed3",
+      "page_ids": [
+        "4afc6ed3"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "09:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:25",
+      "from_template": "2d8c01d4"
+    },
+    {
+      "id": "d31bff47",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "platform": "אינסטגרם",
+      "page_id": "a5ebb7cc",
+      "page_ids": [
+        "a5ebb7cc"
+      ],
+      "due_date": "2026-04-14",
+      "due_time": "09:00",
+      "notes": "",
+      "status": "pending",
+      "created": "2026-04-14 16:25",
+      "from_template": "2d8c01d4"
+    }
+  ],
+  "recurring_tasks": [
+    {
+      "id": "5c2333bb",
+      "title": "פוסט",
+      "task_type": "פוסט",
+      "page_ids": [
+        "all"
+      ],
+      "recurrence": "daily",
+      "recurrence_days": [],
+      "due_time": "12:00",
+      "notes": "",
+      "active": true,
+      "created": "2026-04-14 16:24"
+    },
+    {
+      "id": "2d8c01d4",
+      "title": "סטורי",
+      "task_type": "סטורי",
+      "page_ids": [
+        "all"
+      ],
+      "recurrence": "daily",
+      "recurrence_days": [],
+      "due_time": "09:00",
+      "notes": "",
+      "active": true,
+      "created": "2026-04-14 16:25"
+    }
+  ],
+  "posts_log": [],
+  "reminder_hour": 9,
+  "reminder_minute": 0,
+  "reminder_enabled": true
+}

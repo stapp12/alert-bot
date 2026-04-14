@@ -1,11 +1,11 @@
-import asyncio, aiohttp, json, logging
+import asyncio, aiohttp, json, logging, os
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8662594909:AAFUX9KHgLStD2wzYVA6NzC_speQBicDAsA"
-ADMIN_ID = 6300100326
+BOT_TOKEN = os.environ["ALERT_BOT_TOKEN"]
+ADMIN_ID   = int(os.environ.get("ALERT_ADMIN_ID", "6300100326"))
 
 OREF_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
 OREF_HEADERS = {
