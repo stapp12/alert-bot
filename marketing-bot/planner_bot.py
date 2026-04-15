@@ -381,14 +381,18 @@ async def cb_today_tasks(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
 
     lines = [f"📋 <b>משימות {today}:</b>\n"]
+    buttons = []
     for t in tasks:
         lines.append(format_task(t, data))
-        status_btns = [
-            InlineKeyboardButton("✅", callback_data=f"task_done_{t['id']}"),
-            InlineKeyboardButton("⏭", callback_data=f"task_skip_{t['id']}"),
-        ]
+        if t.get("status") == "pending":
+            name_short = t.get("name", "")[:18]
+            buttons.append([
+                InlineKeyboardButton(f"✅ {name_short}", callback_data=f"task_done_{t['id']}"),
+                InlineKeyboardButton("⏭ דלג",           callback_data=f"task_skip_{t['id']}"),
+            ])
 
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 חזרה", callback_data="main")]])
+    buttons.append([InlineKeyboardButton("🔙 חזרה", callback_data="main")])
+    kb = InlineKeyboardMarkup(buttons)
     await reply(update, "\n\n".join(lines), kb, edit=True)
 
 
@@ -461,6 +465,30 @@ async def cb_rec_view(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 חזרה", callback_data="recurring_list")],
     ])
     await reply(update, text, kb, edit=True)
+
+
+async def cb_task_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer("✅ סומן כבוצע!")
+    tid = update.callback_query.data.replace("task_done_", "")
+    data = load_data()
+    for t in data.get("tasks", []):
+        if t["id"] == tid:
+            t["status"] = "done"
+            break
+    save_data(data)
+    await cb_today_tasks(update, ctx)
+
+
+async def cb_task_skip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer("⏭ דולג")
+    tid = update.callback_query.data.replace("task_skip_", "")
+    data = load_data()
+    for t in data.get("tasks", []):
+        if t["id"] == tid:
+            t["status"] = "skipped"
+            break
+    save_data(data)
+    await cb_today_tasks(update, ctx)
 
 
 async def cb_rec_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -585,7 +613,7 @@ def main():
         states={
             S_TASK_TYPE:      [CallbackQueryHandler(cb_task_type,       pattern="^ttype_")],
             S_TASK_PAGES:     [CallbackQueryHandler(cb_task_pages,      pattern="^page_")],
-            S_TASK_RECURRENCE:[CallbackQueryHandler(cb_task_recurrence, pattern="^rec_")],
+            S_TASK_RECURRENCE:[CallbackQueryHandler(cb_task_recurrence, pattern="^rec_(once|daily|weekly)$")],
             S_TASK_DAYS: [
                 CallbackQueryHandler(cb_day_toggle, pattern="^day_toggle_"),
                 CallbackQueryHandler(cb_days_done,  pattern="^days_done$"),
@@ -625,6 +653,8 @@ def main():
     app.add_handler(CallbackQueryHandler(cb_pages_menu,     pattern="^pages_menu$"))
     app.add_handler(CallbackQueryHandler(cb_del_page,       pattern="^del_page_"))
     app.add_handler(CallbackQueryHandler(cb_settings,       pattern="^settings$"))
+    app.add_handler(CallbackQueryHandler(cb_task_done,      pattern="^task_done_"))
+    app.add_handler(CallbackQueryHandler(cb_task_skip,      pattern="^task_skip_"))
 
     logger.info("Planner bot started")
     app.run_polling(drop_pending_updates=True)
