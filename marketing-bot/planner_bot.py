@@ -34,7 +34,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = os.environ["PLANNER_BOT_TOKEN"]
+TOKEN   = os.environ["PLANNER_BOT_TOKEN"]
+CHAT_ID = int(os.environ.get("PLANNER_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID", "0"))
 DATA_FILE = Path(__file__).parent / "planner_data.json"
 
 # ── שלבי שיחה ────────────────────────────────────────────────────────────────
@@ -580,6 +581,61 @@ async def cb_del_page(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 # ════════════════════════════════════════════════════════════════════════════
+#  תזכורות — Job Queue
+# ════════════════════════════════════════════════════════════════════════════
+async def job_reminders(ctx: ContextTypes.DEFAULT_TYPE):
+    """רץ כל דקה — שולח תזכורת לכל משימה שהגיע זמנה."""
+    if not CHAT_ID:
+        return
+    data = load_data()
+    today     = date.today().isoformat()
+    now_str   = datetime.now().strftime("%H:%M")
+
+    for t in data.get("tasks", []):
+        if (
+            t.get("date") == today
+            and t.get("time") == now_str
+            and t.get("status") == "pending"
+        ):
+            emoji = TASK_TYPE_EMOJI.get(t.get("type", ""), "📌")
+            pname = page_name(data, t.get("page_id", ""))
+            text  = (
+                f"⏰ <b>תזכורת!</b>\n"
+                f"{emoji} <b>{t.get('name', '')}</b>\n"
+                f"📱 {pname}"
+            )
+            if t.get("notes"):
+                text += f"\n📝 {t['notes']}"
+
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ בוצע", callback_data=f"task_done_{t['id']}"),
+                InlineKeyboardButton("⏭ דלג",  callback_data=f"task_skip_{t['id']}"),
+            ]])
+            await ctx.bot.send_message(CHAT_ID, text, parse_mode=ParseMode.HTML, reply_markup=kb)
+
+
+async def job_morning_summary(ctx: ContextTypes.DEFAULT_TYPE):
+    """שולח סיכום בוקר עם כל משימות היום."""
+    if not CHAT_ID:
+        return
+    data = load_data()
+    create_recurring_tasks_for_today(data)
+    today = date.today().isoformat()
+    tasks = [t for t in data.get("tasks", []) if t.get("date") == today and t.get("status") == "pending"]
+
+    if not tasks:
+        await ctx.bot.send_message(CHAT_ID, f"📋 <b>בוקר טוב!</b>\nאין משימות פתוחות להיום.", parse_mode=ParseMode.HTML)
+        return
+
+    lines = [f"📋 <b>בוקר טוב! משימות להיום ({today}):</b>\n"]
+    for t in tasks:
+        lines.append(format_task(t, data))
+
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("📋 פתח רשימה", callback_data="today_tasks")]])
+    await ctx.bot.send_message(CHAT_ID, "\n\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=kb)
+
+
+# ════════════════════════════════════════════════════════════════════════════
 #  ניתוב כללי
 # ════════════════════════════════════════════════════════════════════════════
 async def cb_main(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -605,7 +661,7 @@ async def cb_settings(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 def main():
     Path("logs").mkdir(exist_ok=True)
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).job_queue_enabled(True).build()
 
     # ConversationHandler — יצירת משימה
     task_conv = ConversationHandler(
@@ -656,7 +712,14 @@ def main():
     app.add_handler(CallbackQueryHandler(cb_task_done,      pattern="^task_done_"))
     app.add_handler(CallbackQueryHandler(cb_task_skip,      pattern="^task_skip_"))
 
-    logger.info("Planner bot started")
+    # ── Jobs ──────────────────────────────────────────────────────────────────
+    # בדיקת תזכורות כל דקה
+    app.job_queue.run_repeating(job_reminders, interval=60, first=10)
+    # סיכום בוקר ב-08:00 בכל יום
+    from datetime import time as dtime
+    app.job_queue.run_daily(job_morning_summary, time=dtime(hour=8, minute=0))
+
+    logger.info("Planner bot started (reminders active, CHAT_ID=%s)", CHAT_ID)
     app.run_polling(drop_pending_updates=True)
 
 
