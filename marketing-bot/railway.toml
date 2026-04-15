@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "python3 planner_bot.py"
+startCommand = "bash start_all.sh"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
